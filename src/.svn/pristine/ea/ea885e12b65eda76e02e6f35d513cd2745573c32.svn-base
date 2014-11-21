@@ -1,0 +1,41 @@
+package louvre.demandes;
+
+
+import java.util.Vector;
+
+public class Photographe extends Utilisateur {
+	public Vector<Demande> listeDemandesPrisesEnCharge = new Vector<Demande>();
+	
+	public Photographe(String login, String mdp) {
+		super(login, mdp);
+	}
+
+	public void prendreEnCharge(Demande aDemande) {
+		if(this.addDemande(aDemande)){
+			aDemande.setPriseEnChargePar(this);
+			aDemande.setEtat(EtatDemande.PRISE_EN_CHARGE);
+		}
+		else{
+			System.out.println("La prise en charge a échoué.");
+		}
+		
+	}
+
+	public boolean addDemande(Demande aDemande) {
+		if(listeDemandesPrisesEnCharge.add(aDemande)){
+			
+			System.out.println("Demande: "+aDemande.getNom()+" prise en charge !");
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
+	
+	/**
+	 * Override Utilisateur.isPhotographe
+	 */
+	public boolean isPhotographe(){
+		return true;
+	}
+}

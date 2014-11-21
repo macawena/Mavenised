@@ -1,0 +1,285 @@
+package louvre.demandes;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.Vector;
+import louvre.fiches.Oeuvre;
+
+/**
+ * Point d'entrée pour le système de gestion de demandes
+ * de travaux photos
+ * 
+ * Gère :
+ * 	- la liste des demandes
+ *  - la liste des utilisateurs (Historiens et Photographes)
+ *  - l'utilisateur courant
+ * A une référence vers le système gérant les fiches pour pouvoir accéder aux oeuvres
+ * 
+ * @author Quentin
+ *
+ */
+public class Systeme {
+	
+	private Utilisateur curUser;
+	private Vector<Demande> listeDemandes = new Vector<Demande>();
+	private Vector<Utilisateur> listeUtilisateurs = new Vector<Utilisateur>();
+	private louvre.fiches.Systeme musee;
+	
+	public Systeme(louvre.fiches.Systeme musee)
+	{
+		this.curUser = null;
+		this.musee = musee;
+		// crée des utilisateurs de test
+		
+		Historien historienToto = new Historien("toto", "toto");
+		Photographe photographeTiti = new Photographe("titi", "titi");
+		Historien historienJohan = new Historien("johan","ravry");
+		this.listeUtilisateurs.add(historienToto);
+		this.listeUtilisateurs.add(photographeTiti);
+		this.listeUtilisateurs.add(historienJohan);
+		
+		historienJohan.creerDemande("demande1","demande concernant la joconde",musee.getOeuvreByIndex(0),this);
+		historienJohan.creerDemande("demande2","demande concernant l'esclave mourrant",musee.getOeuvreByIndex(1),this);
+		
+		
+	}
+
+	/**
+	 * Affiche un message demandant à l'utilisateur les informations
+	 * permettants de créer une demande
+	 * On créer ensuite cette demande
+	 */
+	public void afficherPageCreation()
+	{		
+		String nom = readLine("Nom de la demande :");
+		String description = readLine("Description : ");
+		String oeuvre = readLine("Oeuvre : ");
+		
+		this.creerDemande(nom, description, Integer.parseInt(oeuvre));
+	}
+	
+	/**
+	 * readLine fait maison pour palier au bug de System.console()
+	 * qui renvoit null
+	 * 
+	 * @param message : message à afficher
+	 * @return une ligne (String)
+	 */
+	private String readLine(String message)
+	{
+		if (System.console() != null) {
+	        return System.console().readLine(message);
+	    }
+		else{
+		    System.out.print(message);
+		    BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		    try {
+				return reader.readLine();
+			} catch (IOException e) {
+				System.err.println("Erreur IO");
+				return null;
+			}
+		}
+	}
+
+	/**
+	 * Ajoute une nouvelle demande
+	 * Vérifie qu'un utilisateur est connecté et qu'il peut
+	 * créer une demande (i.e. c'est un historien)
+	 * 
+	 * @param nom : nom de la demande
+	 * @param description : description de la demande
+	 * @param oeuvre : index de l'oeuvre associée à la demande
+	 */
+	public void creerDemande(String nom, String description, int oeuvreIndex)
+	{
+		if(curUser != null){
+			if(curUser.isHistorien()){
+				// on récupère l'oeuvre correspondant à l'index
+				Oeuvre oeuvre = musee.getOeuvreByIndex(oeuvreIndex);
+				// on vérifie que la récupération a fonctionné
+				if(oeuvre != null){
+					((Historien) curUser).creerDemande(nom, description, oeuvre, this);
+				}
+				else{
+					System.out.println("L'oeuvre n'existe pas");
+				}
+			}
+			else{
+				System.out.println("Vous n'avez pas le droit de créer une demande");
+			}
+		}
+		else{
+			System.out.println("Vous n'êtes pas connecté");
+		}
+	}
+	
+	/**
+	 * Ajoute une demande à la liste des demandes
+	 * 
+	 * @param demande : la demande à ajouter
+	*/
+	public void addDemande(Demande demande)
+	{
+		listeDemandes.add(demande);		
+	}
+	
+	/**
+	 * Recherche toutes les demandes en attente du
+	 * photographe connecté.
+	 * L'utilisateur connecté doit être le photographe
+	 */
+	public void consulterDemandesEnAttente()
+	{
+		Demande curDemande;
+		Vector<Demande> resultats = new Vector<Demande>();
+		if(curUser.isPhotographe())
+		{
+			for(int i=0;i<listeDemandes.size();i++){
+				curDemande = listeDemandes.get(i);
+				if(curDemande.estEtat(EtatDemande.EN_ATTENTE)){
+					resultats.add(curDemande);
+				}
+			}
+			if(!resultats.isEmpty()){
+				afficherDemandes(resultats);
+			}
+			else{
+				System.out.println("Aucune demandes en attente");
+			}
+		}
+		else{
+			System.out.println("Vous ne pouvez pas consulter les demandes en attente");
+		}
+		
+	}
+
+	/**
+	 * Affiche une liste de demandes
+	 * Utilisé par consulterMesDemandes et consulteresDemandesEnAttente
+	 * @param demandes : le tableau de demandes à afficher
+	 */
+	public void afficherDemandes(Vector<Demande> demandes) 
+	{
+		Demande curDemande;
+		String listeDemande ="\n";
+		
+		listeDemande +="Liste de demandes :\n";	
+		
+		for(int i=0;i<demandes.size();i++){
+			curDemande = demandes.get(i);
+			listeDemande += "\tOeuvre concernée: "+curDemande.getOeuvre().getNom()+"\n";
+			listeDemande += "\tNom de la demande: "+curDemande.getNom()+"\n";
+			listeDemande += "\tDescription: "+curDemande.getDescription()+"\n";
+			listeDemande += "\tEtat: "+curDemande.getEtat()+"\n\n";
+		}
+		System.out.println(listeDemande);
+	}
+	
+	public void voirDemande(Demande demande)
+	{
+		demande.afficher();
+	}
+
+	public void prendreEnCharge(Demande aDemande)
+	{
+		//si un utilisateur est connecté
+		if(curUser != null){
+			//et s'il est photographe
+			if(curUser.isPhotographe()){			
+				((Photographe) curUser).prendreEnCharge(aDemande);	
+			}
+		}
+	}
+
+	/**
+	 * Cherche un utilisateur correspondant au couple
+	 * login/mdp entré par l'utilisateur
+	 * Si un utlisateur correspond, il devient l'utilisateur connecté
+	 * 
+	 * @param aLogin : login entré par l'utilisateur
+	 * @param aPassword : motde passe entré par l'utilisateur
+	 */
+	public void connexion(String aLogin, String aPassword)
+	{
+		int i = 0;
+		int size = listeUtilisateurs.size();
+		boolean connexion = false;
+		Utilisateur u;
+		
+		while(i < size && !connexion) {
+			// obtenir élément courant
+			u = listeUtilisateurs.get(i);
+			// traitement de l'élément
+			if(u.connexion(aLogin, aPassword)) {
+				connexion = true;
+				curUser = u;
+			}
+			// élément suivant
+			i++;
+		}
+	}
+
+	/**
+	 * Cherche et affiche toutes les demandes
+	 * de l'utilisateur courant
+	 * Utilise afficherDemandes() pour afficher le résultat
+	 */
+	public void consulterMesDemandes()
+	{
+		// on vérifie qu'un utilisateur est connecté
+		if(curUser != null){
+			// on vérifie qu'il sagit d'un historien
+			if(curUser.isHistorien()){
+				System.out.println("Consulter mes demandes");
+				afficherDemandes(((Historien) curUser).getDemandes());
+			}
+			else if(curUser.isPhotographe()){
+				System.out.println("Consulter mes demandes");
+				afficherDemandes(((Photographe)curUser).getDemandes());
+			}
+			else{
+				System.out.println("Accès interdit");
+			}
+		}
+		else{
+			System.out.println("Vous n'êtes pas connecté");
+		}
+	}
+	
+	/**
+	 * Renvoie l'utilisateur connecté
+	 * 
+	 * @return : l'utilisateur courant
+	 */
+	public Utilisateur getCurUser()
+	{
+		return this.curUser;
+	}
+
+	
+	
+	
+	public static void main(String[] arg)
+	{
+		louvre.fiches.Systeme musee = new louvre.fiches.Systeme();
+		Systeme sys = new Systeme(musee);
+		
+		sys.connexion("johan", "ravry");
+		sys.consulterMesDemandes();
+		sys.afficherPageCreation();
+		System.out.println("//////////////////////////////////////////////");
+		
+		sys.connexion("titi", "titi");
+		sys.consulterDemandesEnAttente();
+		sys.prendreEnCharge(sys.listeDemandes.get(0));
+		sys.consulterDemandesEnAttente();
+		
+		System.out.println("/////////////////////////////////////////////");
+		
+		sys.connexion("johan", "ravry");
+		sys.consulterMesDemandes();
+		
+	}
+};
